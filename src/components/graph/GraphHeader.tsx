@@ -1,4 +1,4 @@
-import { Search, Filter, Download, Sun, Moon } from 'lucide-react';
+import { Search, Filter, Download, Sun, Moon, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,6 +23,7 @@ interface GraphHeaderProps {
     configuration: boolean;
   };
   onFilterChange: (key: string, value: boolean) => void;
+  onOpenAnalyze: () => void;
 }
 
 export function GraphHeader({
@@ -30,6 +31,7 @@ export function GraphHeader({
   onSearchChange,
   filters,
   onFilterChange,
+  onOpenAnalyze,
 }: GraphHeaderProps) {
   const [isDark, setIsDark] = useState(false);
 
@@ -58,6 +60,17 @@ export function GraphHeader({
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Analyze Button */}
+        <Button 
+          variant="default" 
+          size="sm" 
+          onClick={onOpenAnalyze}
+          className="gap-2"
+        >
+          <Sparkles className="h-4 w-4" />
+          Analyze
+        </Button>
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

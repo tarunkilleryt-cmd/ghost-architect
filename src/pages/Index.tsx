@@ -30,6 +30,7 @@ const Index = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isAnalyzePanelOpen, setIsAnalyzePanelOpen] = useState(false);
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     typescript: true,
@@ -293,12 +294,15 @@ const Index = () => {
         onSearchChange={setSearchQuery}
         filters={filters}
         onFilterChange={handleFilterChange}
+        onOpenAnalyze={() => setIsAnalyzePanelOpen(true)}
       />
 
       {/* Main content */}
       <div className="relative flex-1">
-        {/* Analyze Panel with Drag & Drop */}
+        {/* Analyze Panel Modal */}
         <AnalyzePanel
+          isOpen={isAnalyzePanelOpen}
+          onOpenChange={setIsAnalyzePanelOpen}
           onAnalyze={handleAnalyze}
           onAnalyzeFiles={handleAnalyzeFiles}
           onSave={saveProject}
