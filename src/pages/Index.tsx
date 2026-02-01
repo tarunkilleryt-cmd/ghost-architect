@@ -10,6 +10,7 @@ const Index = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     typescript: true,
     javascript: true,
@@ -74,6 +75,16 @@ const Index = () => {
     }
   }, [isSidebarOpen]);
 
+  // Handle search results highlighting
+  const handleHighlightNodes = useCallback((nodeIds: string[]) => {
+    setHighlightedNodeIds(nodeIds);
+  }, []);
+
+  // Clear highlights
+  const handleClearHighlights = useCallback(() => {
+    setHighlightedNodeIds([]);
+  }, []);
+
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
       {/* Header */}
@@ -91,6 +102,7 @@ const Index = () => {
           nodes={filteredNodes}
           edges={filteredEdges}
           selectedNodeId={selectedNodeId}
+          highlightedNodeIds={highlightedNodeIds}
           onSelectNode={handleSelectNode}
         />
 
@@ -104,6 +116,8 @@ const Index = () => {
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
           onSelectNode={handleSelectNode}
+          onHighlightNodes={handleHighlightNodes}
+          onClearHighlights={handleClearHighlights}
         />
       </div>
     </div>
