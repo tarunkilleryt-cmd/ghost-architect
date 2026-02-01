@@ -6,6 +6,7 @@ interface GraphNodeProps {
   node: FileNode;
   isSelected: boolean;
   isHovered: boolean;
+  isHighlighted: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
   scale: number;
@@ -47,6 +48,7 @@ export function GraphNode({
   node,
   isSelected,
   isHovered,
+  isHighlighted,
   onSelect,
   onHover,
   scale,
@@ -63,6 +65,25 @@ export function GraphNode({
       onMouseEnter={() => onHover(node.id)}
       onMouseLeave={() => onHover(null)}
     >
+      {/* Search highlight glow effect */}
+      {isHighlighted && (
+        <>
+          <circle
+            r={size / 2 + 16}
+            fill="none"
+            stroke="hsl(var(--primary))"
+            strokeWidth={4}
+            opacity={0.8}
+            className="animate-pulse"
+          />
+          <circle
+            r={size / 2 + 12}
+            fill="hsl(var(--primary))"
+            opacity={0.15}
+          />
+        </>
+      )}
+
       {/* Glow effect for selected/hovered state */}
       {(isSelected || isHovered) && (
         <circle
@@ -77,12 +98,12 @@ export function GraphNode({
       {/* Main node circle */}
       <circle
         r={size / 2}
-        fill={color}
-        stroke={isSelected ? 'hsl(var(--foreground))' : 'hsl(var(--border))'}
-        strokeWidth={isSelected ? 3 : 1.5}
+        fill={isHighlighted ? 'hsl(var(--primary))' : color}
+        stroke={isSelected ? 'hsl(var(--foreground))' : isHighlighted ? 'hsl(var(--primary))' : 'hsl(var(--border))'}
+        strokeWidth={isSelected ? 3 : isHighlighted ? 2 : 1.5}
         className="transition-all duration-200"
         style={{
-          filter: isHovered ? 'brightness(1.15)' : 'none',
+          filter: isHovered || isHighlighted ? 'brightness(1.15)' : 'none',
         }}
       />
 
@@ -109,7 +130,10 @@ export function GraphNode({
       <text
         y={size / 2 + 14}
         textAnchor="middle"
-        className="pointer-events-none fill-foreground text-xs font-medium"
+        className={cn(
+          "pointer-events-none text-xs font-medium",
+          isHighlighted ? "fill-primary font-semibold" : "fill-foreground"
+        )}
         style={{ fontSize: Math.max(10, 12 * scale) }}
       >
         {node.name.length > 15 ? node.name.slice(0, 12) + '...' : node.name}
@@ -117,7 +141,7 @@ export function GraphNode({
 
       {/* Importance badge */}
       <g transform={`translate(${size / 2 - 4}, ${-size / 2 + 4})`}>
-        <circle r={8} fill="hsl(var(--background))" stroke="hsl(var(--border))" strokeWidth={1} />
+        <circle r={8} fill="hsl(var(--background))" stroke={isHighlighted ? "hsl(var(--primary))" : "hsl(var(--border))"} strokeWidth={1} />
         <text
           textAnchor="middle"
           dominantBaseline="central"
@@ -126,6 +150,20 @@ export function GraphNode({
           {Math.round(node.importance * 100)}
         </text>
       </g>
+
+      {/* Search match indicator */}
+      {isHighlighted && (
+        <g transform={`translate(${-size / 2 + 4}, ${-size / 2 + 4})`}>
+          <circle r={6} fill="hsl(var(--primary))" />
+          <text
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-primary-foreground text-[8px] font-bold"
+          >
+            ✓
+          </text>
+        </g>
+      )}
     </g>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { FileNode, DependencyEdge } from '@/types/graph';
 import { GraphNode } from './GraphNode';
 import { GraphEdge } from './GraphEdge';
@@ -9,6 +9,7 @@ interface GraphCanvasProps {
   nodes: FileNode[];
   edges: DependencyEdge[];
   selectedNodeId: string | null;
+  highlightedNodeIds: string[];
   onSelectNode: (id: string | null) => void;
 }
 
@@ -16,6 +17,7 @@ export function GraphCanvas({
   nodes,
   edges,
   selectedNodeId,
+  highlightedNodeIds,
   onSelectNode,
 }: GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -25,6 +27,8 @@ export function GraphCanvas({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  const highlightedSet = new Set(highlightedNodeIds);
 
   // Get node by ID
   const getNodeById = useCallback(
@@ -128,6 +132,13 @@ export function GraphCanvas({
         {Math.round(zoom * 100)}%
       </div>
 
+      {/* Search results indicator */}
+      {highlightedNodeIds.length > 0 && (
+        <div className="absolute bottom-4 left-20 z-10 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-md">
+          {highlightedNodeIds.length} match{highlightedNodeIds.length > 1 ? 'es' : ''} found
+        </div>
+      )}
+
       <svg
         ref={svgRef}
         className="h-full w-full cursor-grab active:cursor-grabbing"
@@ -191,6 +202,7 @@ export function GraphCanvas({
                 node={node}
                 isSelected={node.id === selectedNodeId}
                 isHovered={node.id === hoveredNodeId}
+                isHighlighted={highlightedSet.has(node.id)}
                 onSelect={onSelectNode}
                 onHover={setHoveredNodeId}
                 scale={zoom}

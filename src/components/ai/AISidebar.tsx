@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FileNode, ImportanceLevel } from '@/types/graph';
 import { mockExplanations } from '@/data/mockGraphData';
-import { useCodeAnalysis } from '@/hooks/useCodeAnalysis';
+import { useCodeAnalysis, SearchResult } from '@/hooks/useCodeAnalysis';
 import {
   ChevronRight,
   Sparkles,
@@ -18,9 +18,11 @@ import {
   GraduationCap,
   FileText,
   Link2,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -37,6 +39,8 @@ interface AISidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   onSelectNode: (id: string) => void;
+  onHighlightNodes: (nodeIds: string[]) => void;
+  onClearHighlights: () => void;
 }
 
 interface Concept {
@@ -101,18 +105,24 @@ export function AISidebar({
   isOpen,
   onToggle,
   onSelectNode,
+  onHighlightNodes,
+  onClearHighlights,
 }: AISidebarProps) {
   const [activeTab, setActiveTab] = useState('summary');
   const [learningStatus, setLearningStatus] = useState<string | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<StoredAnalysis | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
 
   const { 
     analyzeFile, 
     getStoredAnalysis, 
     updateLearningProgress, 
     getLearningProgress,
+    searchKnowledge,
     isAnalyzing,
-    isLoading 
+    isLoading,
+    isSearching 
   } = useCodeAnalysis();
 
   // Load stored analysis when node changes
@@ -121,7 +131,6 @@ export function AISidebar({
       const data = await getStoredAnalysis(selectedNode.path);
       setStoredAnalysis(data);
       
-      // Load learning progress if we have analysis
       if (data?.id) {
         const progress = await getLearningProgress(data.id);
         setLearningStatus(progress?.status || null);
@@ -145,7 +154,6 @@ export function AISidebar({
   const handleAnalyze = async () => {
     if (!selectedNode) return;
     
-    // Mock file content for demo
     const mockContent = `// ${selectedNode.name}\n// This is a demo file for analysis\nexport function example() {\n  console.log('Hello');\n}`;
     
     const result = await analyzeFile(
@@ -156,7 +164,6 @@ export function AISidebar({
     );
     
     if (result) {
-      // Reload analysis from database
       await loadAnalysis();
     }
   };
@@ -168,7 +175,39 @@ export function AISidebar({
     }
   };
 
-  // Get suggested learning path based on dependencies
+  // Handle AI search
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    const results = await searchKnowledge(searchQuery);
+    setSearchResults(results);
+    
+    // Highlight matching nodes on the graph
+    const matchingNodeIds = results
+      .map(r => {
+        const node = nodes.find(n => n.path === r.file_path);
+        return node?.id;
+      })
+      .filter((id): id is string => !!id);
+    
+    onHighlightNodes(matchingNodeIds);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    onClearHighlights();
+  };
+
+  const handleSearchResultClick = (result: SearchResult) => {
+    const node = nodes.find(n => n.path === result.file_path);
+    if (node) {
+      onSelectNode(node.id);
+      setActiveTab('summary');
+    }
+  };
+
+  // Get suggested learning path
   const getLearningPath = () => {
     if (!selectedNode) return [];
     return nodes
@@ -177,7 +216,7 @@ export function AISidebar({
       .slice(0, 4);
   };
 
-  // Get related files (files in same directory or with similar patterns)
+  // Get related files
   const getRelatedDocs = () => {
     if (!selectedNode) return [];
     const dir = selectedNode.path.split('/').slice(0, -1).join('/');
@@ -190,7 +229,6 @@ export function AISidebar({
 
   return (
     <>
-      {/* Toggle button when closed */}
       {!isOpen && (
         <Button
           variant="secondary"
@@ -202,7 +240,6 @@ export function AISidebar({
         </Button>
       )}
 
-      {/* Sidebar panel */}
       <div
         className={cn(
           'absolute right-0 top-0 z-10 h-full bg-sidebar border-l border-sidebar-border shadow-xl transition-all duration-300',
@@ -222,6 +259,73 @@ export function AISidebar({
               <Button variant="ghost" size="icon" onClick={onToggle}>
                 <X className="h-4 w-4" />
               </Button>
+            </div>
+
+            {/* AI Search */}
+            <div className="p-4 border-b border-sidebar-border">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Ask about the codebase..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="pl-9 pr-8"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                      onClick={handleClearSearch}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                <Button 
+                  onClick={handleSearch} 
+                  disabled={isSearching || !searchQuery.trim()}
+                  size="sm"
+                >
+                  {isSearching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Search'
+                  )}
+                </Button>
+              </div>
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Found {searchResults.length} matching file{searchResults.length > 1 ? 's' : ''}:
+                  </p>
+                  {searchResults.map((result, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSearchResultClick(result)}
+                      className="w-full text-left rounded-lg border border-sidebar-border p-2 hover:bg-sidebar-accent transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-sidebar-foreground truncate">
+                            {result.file_path.split('/').pop()}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {result.reason}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {Math.round(result.relevance * 100)}%
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <ScrollArea className="flex-1">
@@ -253,7 +357,6 @@ export function AISidebar({
                     </div>
                   </div>
 
-                  {/* Analyze with AI button */}
                   {!storedAnalysis?.ai_summary && (
                     <Button 
                       onClick={handleAnalyze} 
@@ -274,14 +377,12 @@ export function AISidebar({
                     </Button>
                   )}
 
-                  {/* Loading state */}
                   {isLoading && (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-sidebar-primary" />
                     </div>
                   )}
 
-                  {/* Tabs: Code Summary | Deep Dive | Related Docs */}
                   {!isLoading && (
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                       <TabsList className="grid w-full grid-cols-3">
@@ -299,9 +400,7 @@ export function AISidebar({
                         </TabsTrigger>
                       </TabsList>
 
-                      {/* Code Summary Tab */}
                       <TabsContent value="summary" className="space-y-4 mt-4">
-                        {/* AI Summary from database */}
                         {storedAnalysis?.ai_summary && (
                           <div className="rounded-lg bg-gradient-to-br from-sidebar-primary/10 to-sidebar-accent/30 p-3 border border-sidebar-primary/20">
                             <div className="flex items-center gap-2 mb-2">
@@ -314,7 +413,6 @@ export function AISidebar({
                           </div>
                         )}
 
-                        {/* Mock explanation fallback */}
                         {!storedAnalysis?.ai_summary && explanation && (
                           <div className="rounded-lg bg-sidebar-accent/50 p-3">
                             <p className="text-sm text-sidebar-foreground leading-relaxed">
@@ -323,7 +421,6 @@ export function AISidebar({
                           </div>
                         )}
 
-                        {/* Learning Progress Actions */}
                         {storedAnalysis && (
                           <div className="flex gap-2">
                             <Button
@@ -356,7 +453,6 @@ export function AISidebar({
                           </div>
                         )}
 
-                        {/* Patterns */}
                         {explanation && (
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
@@ -375,7 +471,6 @@ export function AISidebar({
                           </div>
                         )}
 
-                        {/* File stats */}
                         <div className="rounded-lg bg-sidebar-accent/30 p-3 space-y-2">
                           <h4 className="text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wide">
                             File Statistics
@@ -417,12 +512,11 @@ export function AISidebar({
                         )}
                       </TabsContent>
 
-                      {/* Deep Dive Tab - Concepts from code_knowledge */}
                       <TabsContent value="deepdive" className="space-y-4 mt-4">
                         {concepts.length > 0 ? (
                           <div className="space-y-3">
                             <p className="text-xs text-sidebar-foreground/60">
-                              {concepts.length} concept{concepts.length > 1 ? 's' : ''} extracted from this file:
+                              {concepts.length} concept{concepts.length > 1 ? 's' : ''} extracted:
                             </p>
                             {concepts.map((concept) => (
                               <div
@@ -460,13 +554,12 @@ export function AISidebar({
                                 ) : (
                                   <Sparkles className="mr-2 h-4 w-4" />
                                 )}
-                                Analyze to Extract Concepts
+                                Analyze to Extract
                               </Button>
                             )}
                           </div>
                         )}
 
-                        {/* Suggestions from mock data */}
                         {explanation && (
                           <Collapsible defaultOpen>
                             <CollapsibleTrigger asChild>
@@ -497,18 +590,16 @@ export function AISidebar({
                         )}
                       </TabsContent>
 
-                      {/* Related Docs Tab */}
                       <TabsContent value="related" className="space-y-4 mt-4">
-                        {/* Learning path - dependencies */}
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <BookOpen className="h-4 w-4 text-sidebar-foreground/60" />
                             <span className="text-sm font-medium text-sidebar-foreground">
-                              Learning Path (Dependencies)
+                              Learning Path
                             </span>
                           </div>
                           <p className="text-xs text-sidebar-foreground/60">
-                            Explore these files to understand this component better:
+                            Explore dependencies to understand this better:
                           </p>
                           <div className="space-y-2">
                             {getLearningPath().map((node, i) => (
@@ -541,7 +632,6 @@ export function AISidebar({
 
                         <Separator />
 
-                        {/* Related files in same directory */}
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <Link2 className="h-4 w-4 text-sidebar-foreground/60" />
@@ -549,9 +639,6 @@ export function AISidebar({
                               Related Files
                             </span>
                           </div>
-                          <p className="text-xs text-sidebar-foreground/60">
-                            Other files in the same directory:
-                          </p>
                           <div className="space-y-1">
                             {getRelatedDocs().map((node) => (
                               <button
@@ -588,13 +675,12 @@ export function AISidebar({
                     Select a File
                   </h3>
                   <p className="text-sm text-sidebar-foreground/60 max-w-[240px]">
-                    Click on any node in the graph to see AI-powered insights and explanations.
+                    Click on any node in the graph to see AI-powered insights.
                   </p>
                 </div>
               )}
             </ScrollArea>
 
-            {/* Footer */}
             <div className="border-t border-sidebar-border p-3">
               <p className="text-xs text-center text-sidebar-foreground/50">
                 Powered by Ghost Architect AI

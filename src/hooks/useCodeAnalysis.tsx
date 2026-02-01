@@ -44,9 +44,18 @@ interface LearningProgress {
   notes: string | null;
 }
 
+export interface SearchResult {
+  file_path: string;
+  file_id: string;
+  relevance: number;
+  reason: string;
+  concepts: string[];
+}
+
 export function useCodeAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -205,26 +214,50 @@ export function useCodeAnalysis() {
     }
   }, []);
 
-  const searchKnowledge = useCallback(async (query: string) => {
+  const searchKnowledge = useCallback(async (query: string): Promise<SearchResult[]> => {
+    if (!query.trim()) return [];
+    
+    setIsSearching(true);
     try {
-      const { data, error } = await supabase
-        .from('code_knowledge')
-        .select(`
-          *,
-          code_analysis (
-            file_path,
-            category
-          )
-        `)
-        .ilike('content_markdown', `%${query}%`);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('You must be logged in to search');
+      }
 
-      if (error) throw error;
-      return data || [];
+      const { data, error: fnError } = await supabase.functions.invoke('search-knowledge', {
+        body: { query }
+      });
+
+      if (fnError) {
+        throw fnError;
+      }
+
+      if (data.error) {
+        if (data.error.includes('Rate limit')) {
+          toast({
+            title: 'Rate Limited',
+            description: 'Too many requests. Please wait a moment.',
+            variant: 'destructive',
+          });
+        }
+        throw new Error(data.error);
+      }
+
+      return data.results || [];
     } catch (err) {
-      console.error('Failed to search knowledge:', err);
+      const message = err instanceof Error ? err.message : 'Search failed';
+      console.error('Search failed:', message);
+      toast({
+        title: 'Search Failed',
+        description: message,
+        variant: 'destructive',
+      });
       return [];
+    } finally {
+      setIsSearching(false);
     }
-  }, []);
+  }, [toast]);
 
   return {
     analyzeFile,
@@ -235,6 +268,7 @@ export function useCodeAnalysis() {
     searchKnowledge,
     isAnalyzing,
     isLoading,
+    isSearching,
     error
   };
 }
