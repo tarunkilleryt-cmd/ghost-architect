@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileNode, ImportanceLevel } from '@/types/graph';
 import { mockExplanations } from '@/data/mockGraphData';
+import { useCodeAnalysis } from '@/hooks/useCodeAnalysis';
 import {
   ChevronRight,
-  ChevronLeft,
   Sparkles,
   FileCode,
   GitBranch,
@@ -12,6 +12,9 @@ import {
   Loader2,
   X,
   ArrowRight,
+  CheckCircle,
+  AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +50,17 @@ const getImportanceBadgeVariant = (
   }
 };
 
+const getStatusIcon = (status: string | null) => {
+  switch (status) {
+    case 'understood':
+      return <CheckCircle className="h-4 w-4 text-primary" />;
+    case 'in_progress':
+      return <Clock className="h-4 w-4 text-accent-foreground" />;
+    default:
+      return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+  }
+};
+
 export function AISidebar({
   selectedNode,
   nodes,
@@ -54,13 +68,33 @@ export function AISidebar({
   onToggle,
   onSelectNode,
 }: AISidebarProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     details: true,
     patterns: true,
     suggestions: true,
     learning: false,
+    concepts: true,
   });
+  const [learningStatus, setLearningStatus] = useState<string | null>(null);
+
+  const { 
+    analyzeFile, 
+    getStoredAnalysis, 
+    updateLearningProgress, 
+    getLearningProgress,
+    isAnalyzing 
+  } = useCodeAnalysis();
+
+  const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
+
+  // Load stored analysis when node changes
+  useEffect(() => {
+    if (selectedNode) {
+      getStoredAnalysis(selectedNode.path).then(setStoredAnalysis);
+      // Mock: get learning progress
+      setLearningStatus(null);
+    }
+  }, [selectedNode, getStoredAnalysis]);
 
   const explanation = selectedNode
     ? mockExplanations[selectedNode.id]
@@ -71,6 +105,31 @@ export function AISidebar({
       ...prev,
       [section]: !prev[section],
     }));
+  };
+
+  const handleAnalyze = async () => {
+    if (!selectedNode) return;
+    
+    // Mock file content for demo
+    const mockContent = `// ${selectedNode.name}\n// This is a demo file for analysis\nexport function example() {\n  console.log('Hello');\n}`;
+    
+    const result = await analyzeFile(
+      mockContent,
+      selectedNode.path,
+      selectedNode.name,
+      selectedNode.language
+    );
+    
+    if (result) {
+      setStoredAnalysis({ ...storedAnalysis, ai_summary: result.analysis.summary });
+    }
+  };
+
+  const handleStatusChange = (status: 'understood' | 'need_review' | 'in_progress') => {
+    if (storedAnalysis?.id) {
+      updateLearningProgress(storedAnalysis.id, status);
+      setLearningStatus(status);
+    }
   };
 
   // Get suggested learning path based on dependencies
@@ -135,6 +194,7 @@ export function AISidebar({
                           {selectedNode.path}
                         </p>
                       </div>
+                      {getStatusIcon(learningStatus)}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -146,16 +206,85 @@ export function AISidebar({
                     </div>
                   </div>
 
+                  {/* Analyze with AI button */}
+                  {!storedAnalysis?.ai_summary && (
+                    <Button 
+                      onClick={handleAnalyze} 
+                      disabled={isAnalyzing}
+                      className="w-full"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Analyze with AI
+                        </>
+                      )}
+                    </Button>
+                  )}
+
                   <Separator />
 
-                  {/* AI Summary */}
-                  {explanation ? (
-                    <div className="space-y-4">
-                      <div className="rounded-lg bg-sidebar-accent/50 p-3">
-                        <p className="text-sm text-sidebar-foreground leading-relaxed">
-                          {explanation.summary}
-                        </p>
+                  {/* AI Summary from database */}
+                  {storedAnalysis?.ai_summary && (
+                    <div className="rounded-lg bg-gradient-to-br from-sidebar-primary/10 to-sidebar-accent/30 p-3 border border-sidebar-primary/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="h-4 w-4 text-sidebar-primary" />
+                        <span className="text-xs font-medium text-sidebar-primary">AI Analysis</span>
                       </div>
+                      <p className="text-sm text-sidebar-foreground leading-relaxed">
+                        {storedAnalysis.ai_summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Learning Progress Actions */}
+                  {storedAnalysis && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant={learningStatus === 'understood' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleStatusChange('understood')}
+                        className="flex-1"
+                      >
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        Got it
+                      </Button>
+                      <Button
+                        variant={learningStatus === 'in_progress' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleStatusChange('in_progress')}
+                        className="flex-1"
+                      >
+                        <Clock className="mr-1 h-3 w-3" />
+                        Studying
+                      </Button>
+                      <Button
+                        variant={learningStatus === 'need_review' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleStatusChange('need_review')}
+                        className="flex-1"
+                      >
+                        <AlertCircle className="mr-1 h-3 w-3" />
+                        Review
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Mock explanation fallback */}
+                  {explanation && (
+                    <div className="space-y-4">
+                      {!storedAnalysis?.ai_summary && (
+                        <div className="rounded-lg bg-sidebar-accent/50 p-3">
+                          <p className="text-sm text-sidebar-foreground leading-relaxed">
+                            {explanation.summary}
+                          </p>
+                        </div>
+                      )}
 
                       {/* Details section */}
                       <Collapsible
@@ -260,10 +389,12 @@ export function AISidebar({
                         </CollapsibleContent>
                       </Collapsible>
                     </div>
-                  ) : (
+                  )}
+
+                  {!explanation && !storedAnalysis?.ai_summary && (
                     <div className="text-center py-6">
                       <p className="text-sm text-sidebar-foreground/60">
-                        AI analysis not available for this file.
+                        Click "Analyze with AI" to get insights for this file.
                       </p>
                     </div>
                   )}

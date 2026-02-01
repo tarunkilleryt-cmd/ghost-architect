@@ -50,6 +50,85 @@ export type Database = {
         }
         Relationships: []
       }
+      code_knowledge: {
+        Row: {
+          concept_name: string
+          content_markdown: string
+          created_at: string
+          difficulty_level: string
+          file_id: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          concept_name: string
+          content_markdown: string
+          created_at?: string
+          difficulty_level?: string
+          file_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          concept_name?: string
+          content_markdown?: string
+          created_at?: string
+          difficulty_level?: string
+          file_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_knowledge_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "code_analysis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_progress: {
+        Row: {
+          created_at: string
+          file_id: string | null
+          id: string
+          notes: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_progress_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "code_analysis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
