@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.search-knowledge]
 verify_jwt = false
+
+[functions.analyze-structure]
+verify_jwt = false
