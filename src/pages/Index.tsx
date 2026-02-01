@@ -45,17 +45,82 @@ const Index = () => {
     setIsAnalyzing(true);
     
     try {
-      // Parse the input
-      const parsed = parseInput(input);
-      
+      // Check if it's a GitHub URL
       if (isGitHubUrl(input)) {
         const ghParsed = parseGitHubUrl(input);
         if (ghParsed) {
-          toast.info(`GitHub URL detected: ${ghParsed.owner}/${ghParsed.repo}. For now, please paste the folder structure directly.`);
+          toast.info(`Fetching repository structure from GitHub...`);
+          
+          // Call the edge function to fetch GitHub tree
+          const response = await supabase.functions.invoke('fetch-github-tree', {
+            body: {
+              owner: ghParsed.owner,
+              repo: ghParsed.repo,
+            },
+          });
+
+          if (response.error) {
+            console.error('GitHub fetch error:', response.error);
+            toast.error(response.error.message || 'Failed to fetch GitHub repository');
+            setIsAnalyzing(false);
+            return;
+          }
+
+          if (response.data?.error) {
+            toast.error(response.data.error);
+            setIsAnalyzing(false);
+            return;
+          }
+
+          const files = response.data?.files as ParsedFile[];
+          if (!files || files.length === 0) {
+            toast.error('No code files found in the repository');
+            setIsAnalyzing(false);
+            return;
+          }
+
+          toast.info(`Found ${files.length} code files in ${ghParsed.owner}/${ghParsed.repo}. Analyzing...`);
+          
+          if (response.data?.truncated) {
+            toast.warning('Repository is large - some files may be missing');
+          }
+
+          // Generate nodes from GitHub files
+          const initialNodes = filesToNodes(files);
+          const initialEdges = generateEdges(initialNodes);
+          
+          setNodes(initialNodes);
+          setEdges(initialEdges);
+          setProjectName(name || ghParsed.repo);
+
+          // Call AI to analyze
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session) {
+            const analysisResponse = await supabase.functions.invoke('analyze-structure', {
+              body: {
+                files: files,
+                projectName: name || ghParsed.repo,
+              },
+            });
+
+            if (analysisResponse.data?.analyses) {
+              updateNodesFromAnalysis(analysisResponse.data.analyses);
+              toast.success(`Analysis complete! Generated ${initialNodes.length} nodes from ${ghParsed.repo}`);
+            } else {
+              toast.success(`Generated ${initialNodes.length} nodes from GitHub`);
+            }
+          } else {
+            toast.success(`Generated ${initialNodes.length} nodes from GitHub (login for AI analysis)`);
+          }
+          
           setIsAnalyzing(false);
           return;
         }
       }
+
+      // Parse text input
+      const parsed = parseInput(input);
 
       if (parsed.files.length === 0) {
         toast.error('No code files detected. Make sure to include files with extensions like .ts, .tsx, .js, .py');
