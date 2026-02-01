@@ -57,6 +57,32 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Ghost Architect graph colors
+        graph: {
+          background: "hsl(var(--graph-background))",
+          grid: "hsl(var(--graph-grid))",
+        },
+        node: {
+          low: "hsl(var(--node-low))",
+          medium: "hsl(var(--node-medium))",
+          high: "hsl(var(--node-high))",
+          critical: "hsl(var(--node-critical))",
+          typescript: "hsl(var(--node-typescript))",
+          javascript: "hsl(var(--node-javascript))",
+          python: "hsl(var(--node-python))",
+          java: "hsl(var(--node-java))",
+          csharp: "hsl(var(--node-csharp))",
+          default: "hsl(var(--node-default))",
+          hover: "hsl(var(--node-hover))",
+          selected: "hsl(var(--node-selected))",
+        },
+        edge: {
+          DEFAULT: "hsl(var(--edge-default))",
+          import: "hsl(var(--edge-import))",
+          inheritance: "hsl(var(--edge-inheritance))",
+          composition: "hsl(var(--edge-composition))",
+          active: "hsl(var(--edge-active))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

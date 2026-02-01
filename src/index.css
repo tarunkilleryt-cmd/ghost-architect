@@ -39,20 +39,43 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Ghost Architect - Graph visualization tokens */
+    --graph-background: 220 20% 97%;
+    --graph-grid: 220 15% 90%;
+    
+    /* Node importance colors - from low to high */
+    --node-low: 200 70% 50%;
+    --node-medium: 160 70% 45%;
+    --node-high: 45 90% 50%;
+    --node-critical: 350 80% 55%;
+    
+    /* Node type colors */
+    --node-typescript: 210 80% 55%;
+    --node-javascript: 45 90% 50%;
+    --node-python: 210 60% 45%;
+    --node-java: 15 80% 50%;
+    --node-csharp: 270 60% 55%;
+    --node-default: 220 15% 60%;
+    
+    /* Edge colors */
+    --edge-default: 220 15% 75%;
+    --edge-import: 210 70% 55%;
+    --edge-inheritance: 270 60% 55%;
+    --edge-composition: 160 60% 50%;
+    --edge-active: 350 80% 55%;
+    
+    /* Node states */
+    --node-hover: 210 90% 60%;
+    --node-selected: 350 80% 55%;
+    --node-shadow: 220 30% 20%;
   }
 
   .dark {
@@ -83,6 +106,7 @@ All colors MUST be HSL.
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -91,6 +115,36 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Ghost Architect - Graph visualization tokens (dark mode) */
+    --graph-background: 225 25% 8%;
+    --graph-grid: 225 20% 15%;
+    
+    /* Node importance colors - from low to high (slightly muted for dark) */
+    --node-low: 200 65% 45%;
+    --node-medium: 160 65% 40%;
+    --node-high: 45 85% 55%;
+    --node-critical: 350 75% 50%;
+    
+    /* Node type colors */
+    --node-typescript: 210 75% 50%;
+    --node-javascript: 45 85% 55%;
+    --node-python: 210 55% 40%;
+    --node-java: 15 75% 45%;
+    --node-csharp: 270 55% 50%;
+    --node-default: 220 12% 50%;
+    
+    /* Edge colors */
+    --edge-default: 220 12% 35%;
+    --edge-import: 210 65% 50%;
+    --edge-inheritance: 270 55% 50%;
+    --edge-composition: 160 55% 45%;
+    --edge-active: 350 75% 50%;
+    
+    /* Node states */
+    --node-hover: 210 85% 55%;
+    --node-selected: 350 75% 50%;
+    --node-shadow: 220 30% 5%;
   }
 }
 
@@ -101,5 +155,29 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Graph canvas animations */
+@layer utilities {
+  .graph-node {
+    transition: transform 0.2s ease-out, filter 0.2s ease-out;
+  }
+  
+  .graph-node:hover {
+    filter: brightness(1.1);
+  }
+  
+  .graph-edge {
+    transition: stroke-opacity 0.2s ease-out, stroke-width 0.2s ease-out;
+  }
+  
+  .graph-edge-active {
+    animation: pulse-edge 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-edge {
+    0%, 100% { stroke-opacity: 0.8; }
+    50% { stroke-opacity: 1; }
   }
 }
