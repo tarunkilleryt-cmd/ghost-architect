@@ -60,15 +60,18 @@ export function GraphHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Analyze Button */}
+        {/* Input Project Button */}
         <Button 
           variant="default" 
           size="sm" 
-          onClick={onOpenAnalyze}
+          onClick={() => {
+            console.log('Input button clicked');
+            onOpenAnalyze();
+          }}
           className="gap-2"
         >
           <Sparkles className="h-4 w-4" />
-          Analyze
+          Input
         </Button>
 
         {/* Search */}

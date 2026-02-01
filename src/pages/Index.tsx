@@ -297,23 +297,23 @@ const Index = () => {
         onOpenAnalyze={() => setIsAnalyzePanelOpen(true)}
       />
 
+      {/* Input Panel Modal - rendered at root level for proper z-index */}
+      <AnalyzePanel
+        isOpen={isAnalyzePanelOpen}
+        onOpenChange={setIsAnalyzePanelOpen}
+        onAnalyze={handleAnalyze}
+        onAnalyzeFiles={handleAnalyzeFiles}
+        onSave={saveProject}
+        onLoadProject={loadProject}
+        savedProjects={savedProjects}
+        isAnalyzing={isAnalyzing}
+        isLoading={isLoading}
+        currentProjectName={projectName}
+        onProjectNameChange={setProjectName}
+      />
+
       {/* Main content */}
       <div className="relative flex-1">
-        {/* Analyze Panel Modal */}
-        <AnalyzePanel
-          isOpen={isAnalyzePanelOpen}
-          onOpenChange={setIsAnalyzePanelOpen}
-          onAnalyze={handleAnalyze}
-          onAnalyzeFiles={handleAnalyzeFiles}
-          onSave={saveProject}
-          onLoadProject={loadProject}
-          savedProjects={savedProjects}
-          isAnalyzing={isAnalyzing}
-          isLoading={isLoading}
-          currentProjectName={projectName}
-          onProjectNameChange={setProjectName}
-        />
-
         {/* Graph Canvas */}
         <GraphCanvas
           nodes={filteredNodes}
