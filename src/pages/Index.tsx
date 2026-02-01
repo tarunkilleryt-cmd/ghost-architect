@@ -5,7 +5,7 @@ import { GraphLegend } from '@/components/graph/GraphLegend';
 import { AISidebar } from '@/components/ai/AISidebar';
 import { AnalyzePanel } from '@/components/graph/AnalyzePanel';
 import { useGraphState } from '@/hooks/useGraphState';
-import { parseInput, filesToNodes, generateEdges, isGitHubUrl, parseGitHubUrl } from '@/lib/structureParser';
+import { parseInput, filesToNodes, generateEdges, isGitHubUrl, parseGitHubUrl, ParsedFile } from '@/lib/structureParser';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { FileNode } from '@/types/graph';
@@ -104,6 +104,57 @@ const Index = () => {
     }
   }, [setNodes, setEdges, setProjectName, updateNodesFromAnalysis, setIsAnalyzing]);
 
+  // Handle analyze from dropped files
+  const handleAnalyzeFiles = useCallback(async (files: ParsedFile[], name: string) => {
+    setIsAnalyzing(true);
+    
+    try {
+      if (files.length === 0) {
+        toast.error('No code files detected');
+        setIsAnalyzing(false);
+        return;
+      }
+
+      toast.info(`Detected ${files.length} code files. Analyzing...`);
+
+      // Generate initial nodes from files
+      const initialNodes = filesToNodes(files);
+      const initialEdges = generateEdges(initialNodes);
+      
+      setNodes(initialNodes);
+      setEdges(initialEdges);
+      setProjectName(name);
+
+      // Call AI to analyze the structure
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        const response = await supabase.functions.invoke('analyze-structure', {
+          body: {
+            files: files,
+            projectName: name,
+          },
+        });
+
+        if (response.error) {
+          console.error('Analysis error:', response.error);
+          toast.warning('AI analysis unavailable, using rule-based analysis');
+        } else if (response.data?.analyses) {
+          updateNodesFromAnalysis(response.data.analyses);
+          toast.success(`Analysis complete! Generated ${initialNodes.length} nodes with AI insights.`);
+        }
+      } else {
+        toast.success(`Generated ${initialNodes.length} nodes from files (login for AI analysis)`);
+      }
+
+    } catch (error) {
+      console.error('Analyze error:', error);
+      toast.error('Failed to analyze structure');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [setNodes, setEdges, setProjectName, updateNodesFromAnalysis, setIsAnalyzing]);
+
   // Filter nodes based on search and filters
   const filteredNodes = useMemo(() => {
     return nodes.filter((node) => {
@@ -181,9 +232,10 @@ const Index = () => {
 
       {/* Main content */}
       <div className="relative flex-1">
-        {/* Analyze Panel */}
+        {/* Analyze Panel with Drag & Drop */}
         <AnalyzePanel
           onAnalyze={handleAnalyze}
+          onAnalyzeFiles={handleAnalyzeFiles}
           onSave={saveProject}
           onLoadProject={loadProject}
           savedProjects={savedProjects}
