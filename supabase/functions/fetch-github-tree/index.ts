@@ -70,14 +70,26 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching GitHub tree for ${owner}/${repo}${branch ? ` (${branch})` : ''}`)
 
+    // Get GitHub token for authenticated requests (5000 req/hour vs 60 unauthenticated)
+    const githubToken = Deno.env.get('GITHUB_TOKEN')
+    
+    const githubHeaders: Record<string, string> = {
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Ghost-Architect-App',
+    }
+    
+    if (githubToken) {
+      githubHeaders['Authorization'] = `Bearer ${githubToken}`
+      console.log('Using authenticated GitHub API requests')
+    } else {
+      console.log('Warning: No GITHUB_TOKEN found, using unauthenticated requests (60 req/hour limit)')
+    }
+
     // First, get the default branch if not specified
     let targetBranch = branch
     if (!targetBranch) {
       const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Ghost-Architect-App',
-        },
+        headers: githubHeaders,
       })
 
       if (!repoResponse.ok) {
@@ -107,10 +119,7 @@ Deno.serve(async (req) => {
     const treeResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
       {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Ghost-Architect-App',
-        },
+        headers: githubHeaders,
       }
     )
 
