@@ -14,224 +14,16 @@ export type Database = {
   }
   public: {
     Tables: {
-      materials: {
-        Row: {
-          chapter: string
-          class_level: number
-          content_text: string | null
-          created_at: string
-          external_url: string | null
-          file_path: string | null
-          goal: string
-          id: string
-          is_locked: boolean
-          subject: string
-          title: string
-          type: string
-          updated_at: string
-        }
-        Insert: {
-          chapter: string
-          class_level: number
-          content_text?: string | null
-          created_at?: string
-          external_url?: string | null
-          file_path?: string | null
-          goal: string
-          id?: string
-          is_locked?: boolean
-          subject: string
-          title: string
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          chapter?: string
-          class_level?: number
-          content_text?: string | null
-          created_at?: string
-          external_url?: string | null
-          file_path?: string | null
-          goal?: string
-          id?: string
-          is_locked?: boolean
-          subject?: string
-          title?: string
-          type?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      mistake_book: {
-        Row: {
-          created_at: string
-          id: string
-          question_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          question_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          question_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mistake_book_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profiles: {
-        Row: {
-          class_level: number | null
-          created_at: string
-          display_name: string | null
-          goal: string | null
-          id: string
-          points: number
-          streak: number
-          updated_at: string
-        }
-        Insert: {
-          class_level?: number | null
-          created_at?: string
-          display_name?: string | null
-          goal?: string | null
-          id: string
-          points?: number
-          streak?: number
-          updated_at?: string
-        }
-        Update: {
-          class_level?: number | null
-          created_at?: string
-          display_name?: string | null
-          goal?: string | null
-          id?: string
-          points?: number
-          streak?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      questions: {
-        Row: {
-          chapter: string
-          class_level: number
-          correct_ans: string
-          created_at: string
-          explanation: string | null
-          goal: string
-          id: string
-          options_json: Json
-          question_text: string
-          subject: string
-          updated_at: string
-        }
-        Insert: {
-          chapter: string
-          class_level: number
-          correct_ans: string
-          created_at?: string
-          explanation?: string | null
-          goal: string
-          id?: string
-          options_json?: Json
-          question_text: string
-          subject: string
-          updated_at?: string
-        }
-        Update: {
-          chapter?: string
-          class_level?: number
-          correct_ans?: string
-          created_at?: string
-          explanation?: string | null
-          goal?: string
-          id?: string
-          options_json?: Json
-          question_text?: string
-          subject?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      study_logs: {
-        Row: {
-          chapter: string
-          created_at: string
-          id: string
-          log_date: string
-          minutes_studied: number
-          subject: string
-          user_id: string
-        }
-        Insert: {
-          chapter: string
-          created_at?: string
-          id?: string
-          log_date?: string
-          minutes_studied: number
-          subject: string
-          user_id: string
-        }
-        Update: {
-          chapter?: string
-          created_at?: string
-          id?: string
-          log_date?: string
-          minutes_studied?: number
-          subject?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -358,8 +150,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "moderator", "user"],
-    },
+    Enums: {},
   },
 } as const
