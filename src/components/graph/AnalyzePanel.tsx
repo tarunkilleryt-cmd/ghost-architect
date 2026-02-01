@@ -291,7 +291,7 @@ export function AnalyzePanel({
           <div className="flex items-center gap-2 p-3 border-b border-border">
             <div className="flex items-center gap-2 flex-1">
               <Sparkles className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-lg">Analyze Codebase</span>
+              <span className="font-semibold text-lg">Input Project</span>
             </div>
 
             {/* Project Name */}
