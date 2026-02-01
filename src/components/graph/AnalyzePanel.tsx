@@ -7,20 +7,15 @@ import {
   Sparkles, 
   FolderTree, 
   Github, 
-  ChevronDown, 
   ChevronUp,
   Loader2,
   Save,
   History,
   Upload,
-  FolderOpen
+  FolderOpen,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +26,8 @@ import {
 import { ParsedFile, detectLanguage } from '@/lib/structureParser';
 
 interface AnalyzePanelProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
   onAnalyze: (input: string, projectName: string) => Promise<void>;
   onAnalyzeFiles: (files: ParsedFile[], projectName: string) => Promise<void>;
   onSave: () => Promise<void>;
@@ -68,6 +65,8 @@ const EXAMPLE_STRUCTURE = `my-react-app/
 const CODE_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx', 'py', 'java', 'cs', 'go', 'rs', 'cpp', 'c', 'h', 'hpp', 'rb', 'php', 'swift', 'kt', 'scala', 'vue', 'svelte'];
 
 export function AnalyzePanel({
+  isOpen,
+  onOpenChange,
   onAnalyze,
   onAnalyzeFiles,
   onSave,
@@ -78,7 +77,6 @@ export function AnalyzePanel({
   currentProjectName,
   onProjectNameChange,
 }: AnalyzePanelProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [inputType, setInputType] = useState<'text' | 'github' | 'drop'>('text');
   const [isDragging, setIsDragging] = useState(false);
@@ -254,11 +252,11 @@ export function AnalyzePanel({
   const handleAnalyze = async () => {
     if (inputType === 'drop' && droppedFiles.length > 0) {
       await onAnalyzeFiles(droppedFiles, currentProjectName);
-      setIsOpen(false);
+      onOpenChange(false);
       setDroppedFiles([]);
     } else if (input.trim()) {
       await onAnalyze(input, currentProjectName);
-      setIsOpen(false);
+      onOpenChange(false);
     }
   };
 
@@ -276,27 +274,25 @@ export function AnalyzePanel({
   const canAnalyze = (inputType === 'drop' && droppedFiles.length > 0) || 
                      (inputType !== 'drop' && input.trim());
 
+  if (!isOpen) return null;
+
   return (
-    <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2 w-full max-w-2xl px-4">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <Card className="bg-background/95 backdrop-blur-sm border-border shadow-lg">
-          {/* Collapsed Header */}
-          <div className="flex items-center gap-2 p-3">
-            <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="gap-2 flex-1 justify-start"
-              >
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="font-medium">Analyze Codebase</span>
-                {isOpen ? (
-                  <ChevronUp className="h-4 w-4 ml-auto" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 ml-auto" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+        onClick={() => onOpenChange(false)}
+      />
+      
+      {/* Panel */}
+      <div className="fixed left-1/2 top-20 z-50 -translate-x-1/2 w-full max-w-2xl px-4">
+        <Card className="bg-background border-border shadow-xl">
+          {/* Header */}
+          <div className="flex items-center gap-2 p-3 border-b border-border">
+            <div className="flex items-center gap-2 flex-1">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-lg">Analyze Codebase</span>
+            </div>
 
             {/* Project Name */}
             <Input
@@ -356,11 +352,20 @@ export function AnalyzePanel({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Close button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
           </div>
 
-          {/* Expanded Content */}
-          <CollapsibleContent>
-            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border">
+          {/* Content */}
+          <div className="px-3 pb-3 pt-1 space-y-3">
               {/* Input Type Toggle */}
               <div className="flex gap-2 flex-wrap">
                 <Button
@@ -528,9 +533,8 @@ export function AnalyzePanel({
                 )}
               </Button>
             </div>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-    </div>
-  );
-}
+          </Card>
+        </div>
+      </>
+    );
+  }
