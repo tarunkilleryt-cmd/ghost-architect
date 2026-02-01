@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.analyze-structure]
 verify_jwt = false
+
+[functions.fetch-github-tree]
+verify_jwt = false
