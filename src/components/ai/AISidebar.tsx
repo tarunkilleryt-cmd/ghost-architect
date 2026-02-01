@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FileNode, ImportanceLevel } from '@/types/graph';
 import { mockExplanations } from '@/data/mockGraphData';
 import { useCodeAnalysis } from '@/hooks/useCodeAnalysis';
@@ -15,11 +15,15 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
+  GraduationCap,
+  FileText,
+  Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Collapsible,
   CollapsibleContent,
@@ -35,6 +39,23 @@ interface AISidebarProps {
   onSelectNode: (id: string) => void;
 }
 
+interface Concept {
+  id: string;
+  concept_name: string;
+  content_markdown: string;
+  difficulty_level: 'beginner' | 'intermediate' | 'expert';
+}
+
+interface StoredAnalysis {
+  id: string;
+  file_path: string;
+  ai_summary: string | null;
+  importance_score: number | null;
+  category: string | null;
+  language: string | null;
+  code_knowledge: Concept[];
+}
+
 const getImportanceBadgeVariant = (
   level: ImportanceLevel
 ): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -47,6 +68,19 @@ const getImportanceBadgeVariant = (
       return 'secondary';
     default:
       return 'outline';
+  }
+};
+
+const getDifficultyColor = (level: string) => {
+  switch (level) {
+    case 'beginner':
+      return 'bg-primary/20 text-primary';
+    case 'intermediate':
+      return 'bg-accent text-accent-foreground';
+    case 'expert':
+      return 'bg-destructive/20 text-destructive';
+    default:
+      return 'bg-muted text-muted-foreground';
   }
 };
 
@@ -68,44 +102,45 @@ export function AISidebar({
   onToggle,
   onSelectNode,
 }: AISidebarProps) {
-  const [expandedSections, setExpandedSections] = useState({
-    details: true,
-    patterns: true,
-    suggestions: true,
-    learning: false,
-    concepts: true,
-  });
+  const [activeTab, setActiveTab] = useState('summary');
   const [learningStatus, setLearningStatus] = useState<string | null>(null);
+  const [storedAnalysis, setStoredAnalysis] = useState<StoredAnalysis | null>(null);
 
   const { 
     analyzeFile, 
     getStoredAnalysis, 
     updateLearningProgress, 
     getLearningProgress,
-    isAnalyzing 
+    isAnalyzing,
+    isLoading 
   } = useCodeAnalysis();
 
-  const [storedAnalysis, setStoredAnalysis] = useState<any>(null);
-
   // Load stored analysis when node changes
-  useEffect(() => {
+  const loadAnalysis = useCallback(async () => {
     if (selectedNode) {
-      getStoredAnalysis(selectedNode.path).then(setStoredAnalysis);
-      // Mock: get learning progress
+      const data = await getStoredAnalysis(selectedNode.path);
+      setStoredAnalysis(data);
+      
+      // Load learning progress if we have analysis
+      if (data?.id) {
+        const progress = await getLearningProgress(data.id);
+        setLearningStatus(progress?.status || null);
+      } else {
+        setLearningStatus(null);
+      }
+    } else {
+      setStoredAnalysis(null);
       setLearningStatus(null);
     }
-  }, [selectedNode, getStoredAnalysis]);
+  }, [selectedNode, getStoredAnalysis, getLearningProgress]);
+
+  useEffect(() => {
+    loadAnalysis();
+  }, [loadAnalysis]);
 
   const explanation = selectedNode
     ? mockExplanations[selectedNode.id]
     : null;
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
 
   const handleAnalyze = async () => {
     if (!selectedNode) return;
@@ -121,13 +156,14 @@ export function AISidebar({
     );
     
     if (result) {
-      setStoredAnalysis({ ...storedAnalysis, ai_summary: result.analysis.summary });
+      // Reload analysis from database
+      await loadAnalysis();
     }
   };
 
-  const handleStatusChange = (status: 'understood' | 'need_review' | 'in_progress') => {
+  const handleStatusChange = async (status: 'understood' | 'need_review' | 'in_progress') => {
     if (storedAnalysis?.id) {
-      updateLearningProgress(storedAnalysis.id, status);
+      await updateLearningProgress(storedAnalysis.id, status);
       setLearningStatus(status);
     }
   };
@@ -140,6 +176,17 @@ export function AISidebar({
       .sort((a, b) => b.importance - a.importance)
       .slice(0, 4);
   };
+
+  // Get related files (files in same directory or with similar patterns)
+  const getRelatedDocs = () => {
+    if (!selectedNode) return [];
+    const dir = selectedNode.path.split('/').slice(0, -1).join('/');
+    return nodes
+      .filter((n) => n.id !== selectedNode.id && n.path.startsWith(dir))
+      .slice(0, 5);
+  };
+
+  const concepts = storedAnalysis?.code_knowledge || [];
 
   return (
     <>
@@ -159,7 +206,7 @@ export function AISidebar({
       <div
         className={cn(
           'absolute right-0 top-0 z-10 h-full bg-sidebar border-l border-sidebar-border shadow-xl transition-all duration-300',
-          isOpen ? 'w-96' : 'w-0'
+          isOpen ? 'w-[420px]' : 'w-0'
         )}
       >
         {isOpen && (
@@ -227,267 +274,310 @@ export function AISidebar({
                     </Button>
                   )}
 
-                  <Separator />
-
-                  {/* AI Summary from database */}
-                  {storedAnalysis?.ai_summary && (
-                    <div className="rounded-lg bg-gradient-to-br from-sidebar-primary/10 to-sidebar-accent/30 p-3 border border-sidebar-primary/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="h-4 w-4 text-sidebar-primary" />
-                        <span className="text-xs font-medium text-sidebar-primary">AI Analysis</span>
-                      </div>
-                      <p className="text-sm text-sidebar-foreground leading-relaxed">
-                        {storedAnalysis.ai_summary}
-                      </p>
+                  {/* Loading state */}
+                  {isLoading && (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-sidebar-primary" />
                     </div>
                   )}
 
-                  {/* Learning Progress Actions */}
-                  {storedAnalysis && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant={learningStatus === 'understood' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleStatusChange('understood')}
-                        className="flex-1"
-                      >
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Got it
-                      </Button>
-                      <Button
-                        variant={learningStatus === 'in_progress' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleStatusChange('in_progress')}
-                        className="flex-1"
-                      >
-                        <Clock className="mr-1 h-3 w-3" />
-                        Studying
-                      </Button>
-                      <Button
-                        variant={learningStatus === 'need_review' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleStatusChange('need_review')}
-                        className="flex-1"
-                      >
-                        <AlertCircle className="mr-1 h-3 w-3" />
-                        Review
-                      </Button>
-                    </div>
-                  )}
+                  {/* Tabs: Code Summary | Deep Dive | Related Docs */}
+                  {!isLoading && (
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                      <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="summary" className="text-xs">
+                          <FileText className="h-3 w-3 mr-1" />
+                          Summary
+                        </TabsTrigger>
+                        <TabsTrigger value="deepdive" className="text-xs">
+                          <GraduationCap className="h-3 w-3 mr-1" />
+                          Deep Dive
+                        </TabsTrigger>
+                        <TabsTrigger value="related" className="text-xs">
+                          <Link2 className="h-3 w-3 mr-1" />
+                          Related
+                        </TabsTrigger>
+                      </TabsList>
 
-                  {/* Mock explanation fallback */}
-                  {explanation && (
-                    <div className="space-y-4">
-                      {!storedAnalysis?.ai_summary && (
-                        <div className="rounded-lg bg-sidebar-accent/50 p-3">
-                          <p className="text-sm text-sidebar-foreground leading-relaxed">
-                            {explanation.summary}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Details section */}
-                      <Collapsible
-                        open={expandedSections.details}
-                        onOpenChange={() => toggleSection('details')}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <button className="flex w-full items-center justify-between py-2">
-                            <div className="flex items-center gap-2">
-                              <FileCode className="h-4 w-4 text-sidebar-foreground/60" />
-                              <span className="text-sm font-medium text-sidebar-foreground">
-                                File Details
-                              </span>
+                      {/* Code Summary Tab */}
+                      <TabsContent value="summary" className="space-y-4 mt-4">
+                        {/* AI Summary from database */}
+                        {storedAnalysis?.ai_summary && (
+                          <div className="rounded-lg bg-gradient-to-br from-sidebar-primary/10 to-sidebar-accent/30 p-3 border border-sidebar-primary/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Sparkles className="h-4 w-4 text-sidebar-primary" />
+                              <span className="text-xs font-medium text-sidebar-primary">AI Analysis</span>
                             </div>
-                            <ChevronRight
-                              className={cn(
-                                'h-4 w-4 text-sidebar-foreground/60 transition-transform',
-                                expandedSections.details && 'rotate-90'
-                              )}
-                            />
-                          </button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <ul className="space-y-2 pl-6 pb-2">
-                            {explanation.details.map((detail, i) => (
-                              <li
-                                key={i}
-                                className="text-sm text-sidebar-foreground/80 list-disc"
-                              >
-                                {detail}
-                              </li>
-                            ))}
-                          </ul>
-                        </CollapsibleContent>
-                      </Collapsible>
+                            <p className="text-sm text-sidebar-foreground leading-relaxed">
+                              {storedAnalysis.ai_summary}
+                            </p>
+                          </div>
+                        )}
 
-                      {/* Patterns section */}
-                      <Collapsible
-                        open={expandedSections.patterns}
-                        onOpenChange={() => toggleSection('patterns')}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <button className="flex w-full items-center justify-between py-2">
+                        {/* Mock explanation fallback */}
+                        {!storedAnalysis?.ai_summary && explanation && (
+                          <div className="rounded-lg bg-sidebar-accent/50 p-3">
+                            <p className="text-sm text-sidebar-foreground leading-relaxed">
+                              {explanation.summary}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Learning Progress Actions */}
+                        {storedAnalysis && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant={learningStatus === 'understood' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleStatusChange('understood')}
+                              className="flex-1"
+                            >
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Got it
+                            </Button>
+                            <Button
+                              variant={learningStatus === 'in_progress' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleStatusChange('in_progress')}
+                              className="flex-1"
+                            >
+                              <Clock className="mr-1 h-3 w-3" />
+                              Studying
+                            </Button>
+                            <Button
+                              variant={learningStatus === 'need_review' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleStatusChange('need_review')}
+                              className="flex-1"
+                            >
+                              <AlertCircle className="mr-1 h-3 w-3" />
+                              Review
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Patterns */}
+                        {explanation && (
+                          <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <GitBranch className="h-4 w-4 text-sidebar-foreground/60" />
                               <span className="text-sm font-medium text-sidebar-foreground">
                                 Design Patterns
                               </span>
                             </div>
-                            <ChevronRight
-                              className={cn(
-                                'h-4 w-4 text-sidebar-foreground/60 transition-transform',
-                                expandedSections.patterns && 'rotate-90'
-                              )}
-                            />
-                          </button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="flex flex-wrap gap-2 pl-6 pb-2">
-                            {explanation.patterns.map((pattern, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
-                                {pattern}
-                              </Badge>
-                            ))}
+                            <div className="flex flex-wrap gap-2">
+                              {explanation.patterns.map((pattern, i) => (
+                                <Badge key={i} variant="secondary" className="text-xs">
+                                  {pattern}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                        </CollapsibleContent>
-                      </Collapsible>
+                        )}
 
-                      {/* Suggestions section */}
-                      <Collapsible
-                        open={expandedSections.suggestions}
-                        onOpenChange={() => toggleSection('suggestions')}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <button className="flex w-full items-center justify-between py-2">
-                            <div className="flex items-center gap-2">
-                              <Lightbulb className="h-4 w-4 text-sidebar-foreground/60" />
-                              <span className="text-sm font-medium text-sidebar-foreground">
-                                Suggested Next Steps
+                        {/* File stats */}
+                        <div className="rounded-lg bg-sidebar-accent/30 p-3 space-y-2">
+                          <h4 className="text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wide">
+                            File Statistics
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <span className="text-sidebar-foreground/60">Size:</span>{' '}
+                              <span className="font-medium text-sidebar-foreground">
+                                {selectedNode.size} bytes
                               </span>
                             </div>
-                            <ChevronRight
-                              className={cn(
-                                'h-4 w-4 text-sidebar-foreground/60 transition-transform',
-                                expandedSections.suggestions && 'rotate-90'
-                              )}
-                            />
-                          </button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <ul className="space-y-2 pl-6 pb-2">
-                            {explanation.suggestions.map((suggestion, i) => (
-                              <li
-                                key={i}
-                                className="flex items-start gap-2 text-sm text-sidebar-foreground/80"
-                              >
-                                <ArrowRight className="h-3 w-3 mt-1 flex-shrink-0" />
-                                <span>{suggestion}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </div>
-                  )}
-
-                  {!explanation && !storedAnalysis?.ai_summary && (
-                    <div className="text-center py-6">
-                      <p className="text-sm text-sidebar-foreground/60">
-                        Click "Analyze with AI" to get insights for this file.
-                      </p>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  {/* Learning path */}
-                  <Collapsible
-                    open={expandedSections.learning}
-                    onOpenChange={() => toggleSection('learning')}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <button className="flex w-full items-center justify-between py-2">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-sidebar-foreground/60" />
-                          <span className="text-sm font-medium text-sidebar-foreground">
-                            Learning Path
-                          </span>
-                        </div>
-                        <ChevronRight
-                          className={cn(
-                            'h-4 w-4 text-sidebar-foreground/60 transition-transform',
-                            expandedSections.learning && 'rotate-90'
-                          )}
-                        />
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="space-y-2 pb-2">
-                        <p className="text-xs text-sidebar-foreground/60 mb-3">
-                          Explore these dependencies next:
-                        </p>
-                        {getLearningPath().map((node, i) => (
-                          <button
-                            key={node.id}
-                            onClick={() => onSelectNode(node.id)}
-                            className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent transition-colors text-left"
-                          >
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-xs font-medium">
-                              {i + 1}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-sidebar-foreground truncate">
-                                {node.name}
-                              </p>
-                              <p className="text-xs text-sidebar-foreground/60">
-                                {node.category}
-                              </p>
+                            <div>
+                              <span className="text-sidebar-foreground/60">Complexity:</span>{' '}
+                              <span className="font-medium text-sidebar-foreground">
+                                {selectedNode.complexity}
+                              </span>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-sidebar-foreground/40" />
-                          </button>
-                        ))}
-                        {getLearningPath().length === 0 && (
-                          <p className="text-xs text-sidebar-foreground/60 text-center py-2">
-                            No dependencies to explore
-                          </p>
-                        )}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                            <div>
+                              <span className="text-sidebar-foreground/60">Functions:</span>{' '}
+                              <span className="font-medium text-sidebar-foreground">
+                                {selectedNode.functions.length}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-sidebar-foreground/60">Classes:</span>{' '}
+                              <span className="font-medium text-sidebar-foreground">
+                                {selectedNode.classes.length}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                  {/* File stats */}
-                  <div className="rounded-lg bg-sidebar-accent/30 p-3 space-y-2">
-                    <h4 className="text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wide">
-                      File Statistics
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-sidebar-foreground/60">Size:</span>{' '}
-                        <span className="font-medium text-sidebar-foreground">
-                          {selectedNode.size} bytes
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-sidebar-foreground/60">Complexity:</span>{' '}
-                        <span className="font-medium text-sidebar-foreground">
-                          {selectedNode.complexity}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-sidebar-foreground/60">Functions:</span>{' '}
-                        <span className="font-medium text-sidebar-foreground">
-                          {selectedNode.functions.length}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-sidebar-foreground/60">Classes:</span>{' '}
-                        <span className="font-medium text-sidebar-foreground">
-                          {selectedNode.classes.length}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                        {!storedAnalysis?.ai_summary && !explanation && (
+                          <div className="text-center py-6">
+                            <p className="text-sm text-sidebar-foreground/60">
+                              Click "Analyze with AI" to get insights for this file.
+                            </p>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      {/* Deep Dive Tab - Concepts from code_knowledge */}
+                      <TabsContent value="deepdive" className="space-y-4 mt-4">
+                        {concepts.length > 0 ? (
+                          <div className="space-y-3">
+                            <p className="text-xs text-sidebar-foreground/60">
+                              {concepts.length} concept{concepts.length > 1 ? 's' : ''} extracted from this file:
+                            </p>
+                            {concepts.map((concept) => (
+                              <div
+                                key={concept.id}
+                                className="rounded-lg border border-sidebar-border p-3 space-y-2"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-medium text-sidebar-foreground text-sm">
+                                    {concept.concept_name}
+                                  </h4>
+                                  <Badge className={cn('text-xs capitalize', getDifficultyColor(concept.difficulty_level))}>
+                                    {concept.difficulty_level}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-sidebar-foreground/80 leading-relaxed">
+                                  {concept.content_markdown}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <GraduationCap className="h-10 w-10 text-sidebar-foreground/30 mx-auto mb-3" />
+                            <p className="text-sm text-sidebar-foreground/60 mb-3">
+                              No concepts extracted yet.
+                            </p>
+                            {!storedAnalysis && (
+                              <Button 
+                                onClick={handleAnalyze} 
+                                disabled={isAnalyzing}
+                                size="sm"
+                              >
+                                {isAnalyzing ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Sparkles className="mr-2 h-4 w-4" />
+                                )}
+                                Analyze to Extract Concepts
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Suggestions from mock data */}
+                        {explanation && (
+                          <Collapsible defaultOpen>
+                            <CollapsibleTrigger asChild>
+                              <button className="flex w-full items-center justify-between py-2">
+                                <div className="flex items-center gap-2">
+                                  <Lightbulb className="h-4 w-4 text-sidebar-foreground/60" />
+                                  <span className="text-sm font-medium text-sidebar-foreground">
+                                    Learning Suggestions
+                                  </span>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-sidebar-foreground/60" />
+                              </button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <ul className="space-y-2 pl-6 pb-2">
+                                {explanation.suggestions.map((suggestion, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex items-start gap-2 text-sm text-sidebar-foreground/80"
+                                  >
+                                    <ArrowRight className="h-3 w-3 mt-1 flex-shrink-0" />
+                                    <span>{suggestion}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )}
+                      </TabsContent>
+
+                      {/* Related Docs Tab */}
+                      <TabsContent value="related" className="space-y-4 mt-4">
+                        {/* Learning path - dependencies */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-sidebar-foreground/60" />
+                            <span className="text-sm font-medium text-sidebar-foreground">
+                              Learning Path (Dependencies)
+                            </span>
+                          </div>
+                          <p className="text-xs text-sidebar-foreground/60">
+                            Explore these files to understand this component better:
+                          </p>
+                          <div className="space-y-2">
+                            {getLearningPath().map((node, i) => (
+                              <button
+                                key={node.id}
+                                onClick={() => onSelectNode(node.id)}
+                                className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent transition-colors text-left"
+                              >
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-xs font-medium">
+                                  {i + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-sidebar-foreground truncate">
+                                    {node.name}
+                                  </p>
+                                  <p className="text-xs text-sidebar-foreground/60">
+                                    {node.category} • {node.importanceLevel}
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-sidebar-foreground/40" />
+                              </button>
+                            ))}
+                            {getLearningPath().length === 0 && (
+                              <p className="text-xs text-sidebar-foreground/60 text-center py-2">
+                                No dependencies to explore
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Related files in same directory */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Link2 className="h-4 w-4 text-sidebar-foreground/60" />
+                            <span className="text-sm font-medium text-sidebar-foreground">
+                              Related Files
+                            </span>
+                          </div>
+                          <p className="text-xs text-sidebar-foreground/60">
+                            Other files in the same directory:
+                          </p>
+                          <div className="space-y-1">
+                            {getRelatedDocs().map((node) => (
+                              <button
+                                key={node.id}
+                                onClick={() => onSelectNode(node.id)}
+                                className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-sidebar-accent transition-colors text-left"
+                              >
+                                <FileCode className="h-4 w-4 text-sidebar-foreground/60" />
+                                <span className="text-sm text-sidebar-foreground truncate flex-1">
+                                  {node.name}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {node.category}
+                                </Badge>
+                              </button>
+                            ))}
+                            {getRelatedDocs().length === 0 && (
+                              <p className="text-xs text-sidebar-foreground/60 text-center py-2">
+                                No related files found
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center p-8 text-center h-full">

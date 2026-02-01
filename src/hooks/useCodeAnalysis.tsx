@@ -3,14 +3,29 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Concept {
-  name: string;
-  explanation: string;
-  difficulty: 'beginner' | 'intermediate' | 'expert';
+  id: string;
+  concept_name: string;
+  content_markdown: string;
+  difficulty_level: 'beginner' | 'intermediate' | 'expert';
+}
+
+interface CodeAnalysisData {
+  id: string;
+  file_path: string;
+  ai_summary: string | null;
+  importance_score: number | null;
+  category: string | null;
+  language: string | null;
+  code_knowledge: Concept[];
 }
 
 interface AIAnalysis {
   summary: string;
-  concepts: Concept[];
+  concepts: {
+    name: string;
+    explanation: string;
+    difficulty: 'beginner' | 'intermediate' | 'expert';
+  }[];
   patterns: string[];
   importanceScore: number;
   category: string;
@@ -22,8 +37,16 @@ interface AnalysisResult {
   fileId: string;
 }
 
+interface LearningProgress {
+  id: string;
+  file_id: string;
+  status: 'understood' | 'need_review' | 'in_progress';
+  notes: string | null;
+}
+
 export function useCodeAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -76,25 +99,56 @@ export function useCodeAnalysis() {
     }
   }, [toast]);
 
-  const getStoredAnalysis = useCallback(async (filePath: string) => {
+  const getStoredAnalysis = useCallback(async (filePath: string): Promise<CodeAnalysisData | null> => {
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('code_analysis')
         .select(`
-          *,
-          code_knowledge (*)
+          id,
+          file_path,
+          ai_summary,
+          importance_score,
+          category,
+          language,
+          code_knowledge (
+            id,
+            concept_name,
+            content_markdown,
+            difficulty_level
+          )
         `)
         .eq('file_path', filePath)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
 
-      return data;
+      return data as CodeAnalysisData | null;
     } catch (err) {
       console.error('Failed to get stored analysis:', err);
       return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const getKnowledgeByFileId = useCallback(async (fileId: string): Promise<Concept[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('code_knowledge')
+        .select('*')
+        .eq('file_id', fileId);
+
+      if (error) {
+        throw error;
+      }
+
+      return (data || []) as Concept[];
+    } catch (err) {
+      console.error('Failed to get knowledge:', err);
+      return [];
     }
   }, []);
 
@@ -132,31 +186,55 @@ export function useCodeAnalysis() {
     }
   }, [toast]);
 
-  const getLearningProgress = useCallback(async (fileId: string) => {
+  const getLearningProgress = useCallback(async (fileId: string): Promise<LearningProgress | null> => {
     try {
       const { data, error } = await supabase
         .from('learning_progress')
         .select('*')
         .eq('file_id', fileId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
 
-      return data;
+      return data as LearningProgress | null;
     } catch (err) {
       console.error('Failed to get learning progress:', err);
       return null;
     }
   }, []);
 
+  const searchKnowledge = useCallback(async (query: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('code_knowledge')
+        .select(`
+          *,
+          code_analysis (
+            file_path,
+            category
+          )
+        `)
+        .ilike('content_markdown', `%${query}%`);
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Failed to search knowledge:', err);
+      return [];
+    }
+  }, []);
+
   return {
     analyzeFile,
     getStoredAnalysis,
+    getKnowledgeByFileId,
     updateLearningProgress,
     getLearningProgress,
+    searchKnowledge,
     isAnalyzing,
+    isLoading,
     error
   };
 }
