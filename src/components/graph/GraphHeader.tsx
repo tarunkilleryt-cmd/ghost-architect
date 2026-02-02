@@ -1,4 +1,4 @@
-import { Search, Filter, Download, Sun, Moon, Sparkles } from 'lucide-react';
+import { Search, Filter, Download, Sun, Moon, Sparkles, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,6 +24,7 @@ interface GraphHeaderProps {
   };
   onFilterChange: (key: string, value: boolean) => void;
   onOpenAnalyze: () => void;
+  onOpenProjectsSidebar: () => void;
 }
 
 export function GraphHeader({
@@ -32,6 +33,7 @@ export function GraphHeader({
   filters,
   onFilterChange,
   onOpenAnalyze,
+  onOpenProjectsSidebar,
 }: GraphHeaderProps) {
   const [isDark, setIsDark] = useState(false);
 
@@ -48,6 +50,16 @@ export function GraphHeader({
   return (
     <header className="flex items-center justify-between border-b bg-card px-4 py-3">
       <div className="flex items-center gap-3">
+        {/* Hamburger Menu for Projects */}
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={onOpenProjectsSidebar}
+          className="mr-1"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
             <span className="text-lg font-bold text-primary-foreground">G</span>
