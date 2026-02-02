@@ -44,13 +44,9 @@ interface LearningProgress {
   notes: string | null;
 }
 
-export interface SearchResult {
-  file_path: string;
-  file_id: string;
-  relevance: number;
-  reason: string;
-  concepts: string[];
-}
+import { SearchResponse } from '@/types/search';
+// Re-export from types for backwards compatibility
+export type { SearchResponse, FileReference, LearningPathStep } from '@/types/search';
 
 export function useCodeAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -214,8 +210,8 @@ export function useCodeAnalysis() {
     }
   }, []);
 
-  const searchKnowledge = useCallback(async (query: string): Promise<SearchResult[]> => {
-    if (!query.trim()) return [];
+  const searchKnowledge = useCallback(async (query: string): Promise<SearchResponse | null> => {
+    if (!query.trim()) return null;
     
     setIsSearching(true);
     try {
@@ -244,7 +240,7 @@ export function useCodeAnalysis() {
         throw new Error(data.error);
       }
 
-      return data.results || [];
+      return data as SearchResponse;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Search failed';
       console.error('Search failed:', message);
@@ -253,7 +249,7 @@ export function useCodeAnalysis() {
         description: message,
         variant: 'destructive',
       });
-      return [];
+      return null;
     } finally {
       setIsSearching(false);
     }
