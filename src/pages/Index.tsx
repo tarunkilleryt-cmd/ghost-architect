@@ -4,6 +4,7 @@ import { GraphHeader } from '@/components/graph/GraphHeader';
 import { GraphLegend } from '@/components/graph/GraphLegend';
 import { AISidebar } from '@/components/ai/AISidebar';
 import { AnalyzePanel } from '@/components/graph/AnalyzePanel';
+import { ProjectsSidebar } from '@/components/projects/ProjectsSidebar';
 import { useGraphState } from '@/hooks/useGraphState';
 import { parseInput, filesToNodes, generateEdges, isGitHubUrl, parseGitHubUrl, ParsedFile } from '@/lib/structureParser';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +32,7 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAnalyzePanelOpen, setIsAnalyzePanelOpen] = useState(false);
+  const [isProjectsSidebarOpen, setIsProjectsSidebarOpen] = useState(false);
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     typescript: true,
@@ -295,6 +297,22 @@ const Index = () => {
         filters={filters}
         onFilterChange={handleFilterChange}
         onOpenAnalyze={() => setIsAnalyzePanelOpen(true)}
+        onOpenProjectsSidebar={() => setIsProjectsSidebarOpen(true)}
+      />
+
+      {/* Projects Sidebar */}
+      <ProjectsSidebar
+        isOpen={isProjectsSidebarOpen}
+        onClose={() => setIsProjectsSidebarOpen(false)}
+        projects={savedProjects}
+        currentProjectName={projectName}
+        onLoadProject={(id) => {
+          loadProject(id);
+          setIsProjectsSidebarOpen(false);
+        }}
+        onNewProject={() => {
+          setIsAnalyzePanelOpen(true);
+        }}
       />
 
       {/* Input Panel Modal - rendered at root level for proper z-index */}
