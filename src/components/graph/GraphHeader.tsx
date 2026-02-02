@@ -1,4 +1,4 @@
-import { Search, Filter, Download, Sun, Moon, Sparkles, Menu } from 'lucide-react';
+import { Search, Filter, Download, Sun, Moon, Sparkles, Menu, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ProfileDropdown } from '@/components/profile/ProfileDropdown';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface GraphHeaderProps {
   searchQuery: string;
@@ -37,6 +38,7 @@ export function GraphHeader({
   onOpenProjectsSidebar,
 }: GraphHeaderProps) {
   const [isDark, setIsDark] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -147,6 +149,11 @@ export function GraphHeader({
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Dashboard */}
+        <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
+          <LayoutDashboard className="h-4 w-4" />
+        </Button>
 
         {/* Export */}
         <Button variant="outline" size="icon">
