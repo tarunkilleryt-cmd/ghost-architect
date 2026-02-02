@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FileNode, ImportanceLevel } from '@/types/graph';
+import { SearchResponse } from '@/types/search';
 import { mockExplanations } from '@/data/mockGraphData';
-import { useCodeAnalysis, SearchResult } from '@/hooks/useCodeAnalysis';
+import { useCodeAnalysis } from '@/hooks/useCodeAnalysis';
+import { SearchResultsPanel } from './SearchResultsPanel';
 import {
   ChevronRight,
   Sparkles,
@@ -112,7 +114,7 @@ export function AISidebar({
   const [learningStatus, setLearningStatus] = useState<string | null>(null);
   const [storedAnalysis, setStoredAnalysis] = useState<StoredAnalysis | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null);
 
   const { 
     analyzeFile, 
@@ -179,32 +181,26 @@ export function AISidebar({
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
-    const results = await searchKnowledge(searchQuery);
-    setSearchResults(results);
+    const response = await searchKnowledge(searchQuery);
+    setSearchResponse(response);
     
     // Highlight matching nodes on the graph
-    const matchingNodeIds = results
-      .map(r => {
-        const node = nodes.find(n => n.path === r.file_path);
-        return node?.id;
-      })
-      .filter((id): id is string => !!id);
-    
-    onHighlightNodes(matchingNodeIds);
+    if (response?.files) {
+      const matchingNodeIds = response.files
+        .map(f => {
+          const node = nodes.find(n => n.path === f.file_path);
+          return node?.id;
+        })
+        .filter((id): id is string => !!id);
+      
+      onHighlightNodes(matchingNodeIds);
+    }
   };
 
   const handleClearSearch = () => {
     setSearchQuery('');
-    setSearchResults([]);
+    setSearchResponse(null);
     onClearHighlights();
-  };
-
-  const handleSearchResultClick = (result: SearchResult) => {
-    const node = nodes.find(n => n.path === result.file_path);
-    if (node) {
-      onSelectNode(node.id);
-      setActiveTab('summary');
-    }
   };
 
   // Get suggested learning path
@@ -296,38 +292,23 @@ export function AISidebar({
                   )}
                 </Button>
               </div>
-
-              {/* Search Results */}
-              {searchResults.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Found {searchResults.length} matching file{searchResults.length > 1 ? 's' : ''}:
-                  </p>
-                  {searchResults.map((result, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSearchResultClick(result)}
-                      className="w-full text-left rounded-lg border border-sidebar-border p-2 hover:bg-sidebar-accent transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-sidebar-foreground truncate">
-                            {result.file_path.split('/').pop()}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {result.reason}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className="text-xs shrink-0">
-                          {Math.round(result.relevance * 100)}%
-                        </Badge>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
+            {/* Show Search Results Panel or Regular Content */}
+            {searchResponse ? (
+              <SearchResultsPanel
+                response={searchResponse}
+                nodes={nodes}
+                query={searchQuery}
+                onSelectNode={(id) => {
+                  onSelectNode(id);
+                  setSearchResponse(null);
+                  setSearchQuery('');
+                  onClearHighlights();
+                }}
+                onClear={handleClearSearch}
+              />
+            ) : (
             <ScrollArea className="flex-1">
               {selectedNode ? (
                 <div className="p-4 space-y-4">
@@ -680,6 +661,7 @@ export function AISidebar({
                 </div>
               )}
             </ScrollArea>
+            )}
 
             <div className="border-t border-sidebar-border p-3">
               <p className="text-xs text-center text-sidebar-foreground/50">
