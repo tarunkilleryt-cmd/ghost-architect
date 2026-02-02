@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ProfileDropdown } from '@/components/profile/ProfileDropdown';
 import { useState, useEffect } from 'react';
 
 interface GraphHeaderProps {
@@ -156,6 +157,9 @@ export function GraphHeader({
         <Button variant="outline" size="icon" onClick={toggleTheme}>
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
+
+        {/* Profile Dropdown */}
+        <ProfileDropdown />
       </div>
     </header>
   );
