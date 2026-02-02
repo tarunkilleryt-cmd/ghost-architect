@@ -7,7 +7,8 @@
 | Field | Details |
 |-------|---------|
 | **Team Name** | Ghost Architects |
-| **Team Leader Name** | [Your Name] |
+| **Team Leader Name** | Rinku |
+| **Contact Email** | realtarun786@gmail.com |
 | **Problem Statement** | Build an AI-powered solution that helps people learn faster, work smarter, or become more productive while building or understanding technology |
 
 ---
@@ -333,12 +334,14 @@ GitHub API  ──▶  Edge Function  ──▶  Supabase DB  ──▶  React F
 
 ---
 
-🔗 **Live Demo:** [Preview URL]
+🔗 **Live Demo:** https://github.com/tarunkilleryt-cmd/ghost-architect
 
-📧 **Contact:** [Your Email]
+📧 **Contact:** realtarun786@gmail.com
 
-🐙 **GitHub:** [Your Repository]
+🐙 **GitHub:** https://github.com/tarunkilleryt-cmd/ghost-architect
 
 ---
+
+**Team Leader:** Rinku
 
 *Powered by Supabase, React, and AI*
