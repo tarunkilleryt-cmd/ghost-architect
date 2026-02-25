@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,24 @@ export default function Auth() {
   const { user, loading, signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Clear any stale/invalid session on mount to prevent "unable to fetch" errors
+  useEffect(() => {
+    const clearStaleSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || (session && !user && !loading)) {
+          await supabase.auth.signOut();
+        }
+      } catch {
+        // Force clear localStorage if signOut fails
+        localStorage.removeItem('sb-wecjzsejatuejadqhnyq-auth-token');
+      }
+    };
+    if (!loading && !user) {
+      clearStaleSession();
+    }
+  }, [loading, user]);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
